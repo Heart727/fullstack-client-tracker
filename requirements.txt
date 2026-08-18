@@ -1,0 +1,10 @@
+# 项目依赖清单：新机器上一条命令装齐所有第三方库
+# 用法：pip install -r requirements.txt
+#
+# fastapi —— 后端 Web 框架（处理 HTTP 请求、定义 API）
+# uvicorn —— 服务器程序（负责把 FastAPI 应用跑起来，监听端口）
+#
+# SQLite 是 Python 自带的（sqlite3 模块），不用写在这里。
+# 前端用原生 HTML/CSS/JS，也不需要安装任何东西。
+fastapi>=0.110
+uvicorn>=0.27

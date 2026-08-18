@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport 这行是"手机上能用"的关键：告诉手机浏览器按设备宽度渲染，别把桌面版缩小塞进屏幕 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>客户跟进管理</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 顶部栏：应用名 + 两个页面标签 -->
+    <header class="topbar">
+        <h1>客户跟进管理</h1>
+        <nav class="tabs">
+            <button class="tab active" data-view="home">首页</button>
+            <button class="tab" data-view="clients">客户</button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- ============ 视图一：首页（仪表盘） ============ -->
+        <section id="view-home" class="view">
+            <!-- 三个状态统计卡片，数字由 JS 填入 -->
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-num" id="stat-pending">0</div>
+                    <div class="stat-label">待跟进</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num" id="stat-ongoing">0</div>
+                    <div class="stat-label">进行中</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num" id="stat-done">0</div>
+                    <div class="stat-label">已完成</div>
+                </div>
+            </div>
+
+            <h2>今日要跟进</h2>
+            <p class="hint" id="followup-hint">加载中…</p>
+            <!-- 今日要跟进的客户卡片列表，由 JS 渲染 -->
+            <div id="followup-list" class="card-list"></div>
+        </section>
+
+        <!-- ============ 视图二：客户列表 ============ -->
+        <section id="view-clients" class="view" hidden>
+            <!-- 筛选栏：状态 / 来源 / 关键词，三个条件可组合 -->
+            <div class="filters">
+                <select id="filter-status">
+                    <option value="">全部状态</option>
+                    <option value="待跟进">待跟进</option>
+                    <option value="进行中">进行中</option>
+                    <option value="已完成">已完成</option>
+                </select>
+                <select id="filter-source">
+                    <option value="">全部来源</option>
+                    <!-- 来源选项由 JS 根据现有数据动态生成 -->
+                </select>
+                <input type="search" id="filter-q" placeholder="搜姓名 / 项目 / 备注">
+                <button id="btn-filter" class="btn">搜索</button>
+                <button id="btn-reset" class="btn btn-ghost">重置</button>
+            </div>
+
+            <p class="hint" id="list-hint">共 0 个客户</p>
+            <!-- 客户卡片列表，由 JS 渲染 -->
+            <div id="client-list" class="card-list"></div>
+        </section>
+    </main>
+
+    <!-- 右下角浮动"新建"按钮，手机单手就能点到 -->
+    <button id="btn-new" class="fab" title="新建客户">＋</button>
+
+    <!-- ============ 新建 / 编辑 弹窗表单 ============ -->
+    <div id="modal" class="modal-mask" hidden>
+        <div class="modal">
+            <h2 id="modal-title">新建客户</h2>
+            <!-- 表单不用 action：提交动作由 JS 拦截（见 app.js） -->
+            <form id="client-form">
+                <!-- 隐藏字段：编辑时记录正在改的客户 id；新建时为空 -->
+                <input type="hidden" id="form-id">
+
+                <label>姓名 *<input type="text" id="form-name" required placeholder="客户姓名 / 公司名"></label>
+                <label>来源<input type="text" id="form-source" list="source-options" placeholder="如：Upwork、朋友介绍"></label>
+                <label>项目描述<textarea id="form-desc" rows="2" placeholder="客户要做什么"></textarea></label>
+                <label>报价（元）<input type="number" id="form-quote" min="0" step="0.01" placeholder="如：500"></label>
+                <label>状态
+                    <select id="form-status">
+                        <option value="待跟进">待跟进</option>
+                        <option value="进行中">进行中</option>
+                        <option value="已完成">已完成</option>
+                    </select>
+                </label>
+                <label>下次跟进日期<input type="date" id="form-followup"></label>
+                <label>备注<textarea id="form-notes" rows="2" placeholder="聊到哪了、对方什么态度…"></textarea></label>
+
+                <div class="modal-actions">
+                    <button type="button" id="btn-cancel" class="btn btn-ghost">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 来源输入框的联想建议列表（datalist 是浏览器原生功能，不用写代码） -->
+    <datalist id="source-options"></datalist>
+
+    <script src="app.js"></script>
+</body>
+</html>
