@@ -6,6 +6,12 @@
 */
 
 /* ---------- 基础 ---------- */
+/* 关键修复：HTML 的 hidden 属性本该让元素不显示（浏览器默认样式如此），
+   但只要任何作者样式给该元素写了 display（比如下面 .modal-mask 的
+   display:flex），作者样式优先级更高，hidden 就失效了——弹窗遮罩会
+   永远盖在页面上关不掉。所以这里强制规定：带 hidden 的元素一律不显示。 */
+[hidden] { display: none !important; }
+
 /* CSS 变量：把配色集中定义，想换主题只改这里 */
 :root {
     --primary: #2563eb;      /* 主色：按钮、高亮 */

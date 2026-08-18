@@ -8,6 +8,7 @@ __pycache__/
 # SQLite 数据库：里面是用户的真实客户数据，不能进代码仓库。
 # 新机器第一次启动服务时会自动建库建表，什么都不用做。
 clients.db
+test_clients.db
 
 # 临时文件
 *.log

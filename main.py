@@ -13,8 +13,11 @@
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
 
@@ -33,6 +36,22 @@ async def lifespan(_app: FastAPI):
 
 # 创建 FastAPI 应用实例：整个后端的"总服务台"
 app = FastAPI(title="客户跟进管理", description="自由职业者的客户台账 API", lifespan=lifespan)
+
+
+# ==================== 统一错误格式 ====================
+# 默认情况下，请求体类型不对（比如报价传了 "abc"、漏传 name）会被
+# Pydantic 拒绝并返回 422 + 英文错误 + detail 是数组——这和本项目的
+# 约定（400 + 中文原因 + detail 是字符串）不一致，前端也没法直接展示。
+# 这里注册一个全局处理器，把这类"格式错误"翻译成统一的中文格式。
+@app.exception_handler(RequestValidationError)
+async def handle_validation_error(_request: Request, exc: RequestValidationError):
+    # exc.errors() 是错误列表，取第一条的 msg（如 "Input should be a
+    # valid number"），其余细节忽略——对小白用户来说一条就够用了。
+    first = exc.errors()[0] if exc.errors() else {}
+    field = first.get("loc", ["?"])[-1]  # loc 是出错字段的路径，取最后一段
+    reason = first.get("msg", "数据格式不正确")
+    detail = f"「{field}」字段格式不正确（{reason}）"
+    return JSONResponse(status_code=400, content={"detail": detail})
 
 
 # ==================== 请求体模型 ====================
@@ -129,6 +148,10 @@ def api_stats():
 # 把 static/ 目录整个挂到网站根路径：
 #   static/index.html  ->  http://localhost:8000/
 #   static/app.js      ->  http://localhost:8000/app.js
-# html=True 表示找不到具体文件时自动回落到 index.html（单页应用惯例）。
+# 注意两点：
+#   1) 路径用 Path(__file__) 拼绝对路径——不管从哪个目录启动服务都能找到前端；
+#   2) html=True 只对"目录请求"回落到 index.html（比如访问 /docs/），
+#      访问不存在的文件路径仍是 404。本应用用 # 锚点路由，不受影响。
+#   3) 挂载必须放在所有 API 路由之后，否则静态托管会"吃掉" /api/... 请求。
 
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount("/", StaticFiles(directory=Path(__file__).parent / "static", html=True), name="static")

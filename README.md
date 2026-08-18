@@ -24,7 +24,7 @@
 
 ## 怎么运行
 
-需要 Python 3.9+。第一次使用：
+需要 Python 3.10+。第一次使用：
 
 ```powershell
 # 1. 在项目目录里创建虚拟环境（隔离依赖）
@@ -46,13 +46,18 @@ python -m uvicorn main:app --port 8000
 
 ### 方式一：自动化接口自检（推荐先跑这个）
 
-服务启动后，另开一个终端：
+⚠️ 自检脚本会清空并写入测试数据，**必须指向独立的测试数据库运行**（绝不对着真实数据跑）：
 
 ```powershell
+# 终端一：用临时测试库启动服务
+$env:DATABASE_PATH = "test_clients.db"
+python -m uvicorn main:app --port 8000
+
+# 终端二：跑自检
 .venv\Scripts\python verify_api.py
 ```
 
-脚本会真实调用全部接口：增、查、筛选、改、统计、删、错误处理，共 26 项检查，全过输出「全部通过 🎉」。可重复运行（每次先清空数据）。
+脚本会真实调用全部接口：增、查、筛选、改、统计、删、错误处理（含格式错误的中文提示），共 30 项检查，全过输出「全部通过 🎉」。测完删除 test_clients.db 即可。
 
 ### 方式二：浏览器手动操作清单
 
@@ -86,9 +91,18 @@ python -m uvicorn main:app --port 8000
 | `static/index.html` | 页面骨架（首页 + 列表 + 新建/编辑弹窗） |
 | `static/style.css` | 移动优先样式 |
 | `static/app.js` | 前端逻辑：调 API、渲染、筛选、表单交互 |
-| `verify_api.py` | 接口自检脚本（26 项检查，可重复运行） |
+| `verify_api.py` | 接口自检脚本（30 项检查，可重复运行） |
+| `railway.json` | Railway 部署配置（启动命令 + 健康检查） |
 | `clients.db` | SQLite 数据文件（首次启动自动生成，已 gitignore） |
 
-## 部署
+## 部署（Railway）
 
-（本地验收通过后部署到 Railway，与 starter-rag-app 同平台。）
+仓库已带 `railway.json`（启动命令 + 健康检查路径），部署只需三步：
+
+1. 在 Railway 新建项目选本仓库（自动识别 Python + 启动命令）
+2. **挂载持久化卷**（关键！Railway 的容器硬盘是临时的，重启即清空，不挂卷客户数据会丢）：
+   - 项目 → Settings → Volumes → Add Volume，挂载路径填 `/data`
+   - 添加环境变量 `DATABASE_PATH=/data/clients.db`
+3. 部署完成后打开公开链接即可
+
+⚠️ **安全提醒**：本项目没有登录功能，公开链接任何人都能读写数据。演示时只放假数据；如果要存真实客户信息，请先在 Railway 环境变量里配置访问口令并加一层校验（当前版本未做，属已知限制）。

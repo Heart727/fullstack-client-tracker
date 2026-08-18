@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
 """verify_api.py —— 后端接口自检脚本（用 Python 自带库，无需额外依赖）
 
-用法：先启动服务（uvicorn main:app --port 8000），再另开一个终端运行：
-    .venv\\Scripts\\python verify_api.py
+⚠️ 重要：本脚本会清空并写入测试数据，必须指向【独立的测试数据库】运行，
+   绝不能对着存了真实客户数据的库跑（会把数据抹掉）！
+
+推荐用法（用环境变量把数据库指到临时文件，测试库和真实库彻底隔离）：
+    先在一个终端启动测试实例：
+        DATABASE_PATH=test_clients.db .venv\\Scripts\\python -m uvicorn main:app --port 8000
+    再另开一个终端运行：
+        .venv\\Scripts\\python verify_api.py
+    测完把 test_clients.db 删掉即可（Windows PowerShell: Remove-Item test_clients.db）
 
 脚本按顺序把 增/查/筛选/改/统计/删/错误处理 全部真实调用一遍，
 每项输出 PASS 或 FAIL，最后给总结论。退出码：全部通过为 0，否则为 1。
-（注意：脚本会写入测试数据并删除其中一个，会改动数据库内容。）
 """
 
 import json
@@ -100,6 +106,20 @@ def main():
 
     code, err = call("POST", "/api/clients", {"name": "测试", "quote": -5})
     check("负数报价被拒绝（400）", code == 400, f"实际 {code} {err}")
+
+    # 下面三条是"格式错误"：由全局校验处理器统一转成 400 + 中文原因
+    code, err = call("POST", "/api/clients", {"name": "测试", "quote": "abc"})
+    check("非数字报价被拒绝（400 中文）",
+          code == 400 and isinstance(err.get("detail"), str), f"实际 {code} {err}")
+
+    code, err = call("POST", "/api/clients", {"status": "待跟进"})  # 整个 name 字段缺失
+    check("缺 name 字段被拒绝（400）", code == 400, f"实际 {code} {err}")
+
+    code, err = call("POST", "/api/clients", {"name": "测试", "next_followup": "2026-8-5"})
+    check("日期不补零被拒绝（400）", code == 400, f"实际 {code} {err}")
+
+    code, err = call("POST", "/api/clients", {"name": "测试", "next_followup": "2026-08-18abc"})
+    check("日期带垃圾尾巴被拒绝（400）", code == 400, f"实际 {code} {err}")
 
     code, err = call("GET", "/api/clients/99999")
     check("查不存在的客户返回 404", code == 404, f"实际 {code}")

@@ -15,11 +15,16 @@ async function api(path, options = {}) {
             ...options,
         });
         if (!resp.ok) {
-            // 后端出错时返回的 JSON 形如 {detail: "姓名不能为空"}，取出来当提示
+            // 后端出错时返回的 JSON 形如 {detail: "姓名不能为空"}，取出来当提示。
+            // detail 通常是字符串，但某些校验错误（旧版后端）是数组，做一层兼容。
             let msg = `请求失败（HTTP ${resp.status}）`;
             try {
                 const body = await resp.json();
-                if (body.detail) msg = body.detail;
+                if (Array.isArray(body.detail)) {
+                    msg = body.detail[0]?.msg || msg;
+                } else if (body.detail) {
+                    msg = body.detail;
+                }
             } catch { /* 后端没返回 JSON 就用上面的默认提示 */ }
             throw new Error(msg);
         }
@@ -133,22 +138,49 @@ async function renderClients() {
     list.innerHTML = clients.length
         ? clients.map((c) => clientCardHTML(c)).join("")
         : `<p class="hint">没有符合条件的客户。点右下角 ＋ 新建一个吧。</p>`;
-
-    refreshSourceOptions(clients); // 每次拉完数据顺带更新"来源"下拉选项
 }
 
-function refreshSourceOptions(clients) {
-    // 来源下拉框 + 表单输入联想：选项来自现有数据里出现过的来源（去重排序）
-    const sources = [...new Set(clients.map((c) => c.source).filter(Boolean))].sort();
+// 所有客户的全量缓存（不带筛选），用于构建"来源"下拉选项。
+// 为什么单独存一份？如果从"筛选后的结果"里提取来源，选项会随筛选
+// 结果变化而缩水，用户选中的来源还可能被静默清空，体验很怪。
+let allClients = [];
+
+async function loadAllClientsForSources() {
+    // 拉一次全量列表（不要筛选参数），只用于来源下拉框的选项
+    allClients = await api("/api/clients");
+    refreshSourceOptions();
+}
+
+function refreshSourceOptions() {
+    // 来源下拉框 + 表单输入联想：选项来自全量客户中出现过的来源（去重排序）。
+    // 安全要点：不用字符串拼接 HTML，而是 createElement + 直接赋值
+    // .value / .textContent——这样无论来源里夹带什么字符（引号、<script>），
+    // 都只是普通文字，绝无可能变成 HTML/JS 执行（防存储型 XSS）。
+    const sources = [...new Set(allClients.map((c) => c.source).filter(Boolean))].sort();
 
     const select = document.getElementById("filter-source");
     const current = select.value; // 记住用户当前选的值，重建后别丢
-    select.innerHTML = `<option value="">全部来源</option>` +
-        sources.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
-    select.value = current;
+    select.innerHTML = "";        // 清空（此处没有拼接任何用户数据，安全）
 
-    document.getElementById("source-options").innerHTML =
-        sources.map((s) => `<option value="${escapeHtml(s)}"></option>`).join("");
+    const allOpt = document.createElement("option");
+    allOpt.value = "";
+    allOpt.textContent = "全部来源";
+    select.appendChild(allOpt);
+    for (const s of sources) {
+        const opt = document.createElement("option");
+        opt.value = s;          // 直接赋值属性，浏览器负责安全处理
+        opt.textContent = s;
+        select.appendChild(opt);
+    }
+    select.value = current;     // 若旧选中值已不存在，浏览器自动回落到第一项
+
+    const datalist = document.getElementById("source-options");
+    datalist.innerHTML = "";
+    for (const s of sources) {
+        const opt = document.createElement("option");
+        opt.value = s;
+        datalist.appendChild(opt);
+    }
 }
 
 /* ==================== 四、弹窗表单（新建 / 编辑共用） ==================== */
@@ -183,7 +215,15 @@ async function submitForm(event) {
     // 表单提交（点"保存"）：根据有没有隐藏 id 判断是新建还是编辑
     event.preventDefault(); // 阻止浏览器默认刷新页面
 
-    const id = document.getElementById("form-id").value;
+    // 防重复提交：请求期间禁用保存按钮。不这么做的话，快速双击
+    // "保存"会发两个请求、创建两条重复客户。
+    const saveBtn = document.querySelector('#client-form button[type="submit"]');
+    if (saveBtn.disabled) return;   // 已经在提交中了，忽略这次点击
+    saveBtn.disabled = true;
+    const originalText = saveBtn.textContent;
+    saveBtn.textContent = "保存中…";
+
+    const id = document.getElementById("form-id");
     // 报价输入框是文本类型；空串要转成 null 再提交——
     // 因为后端接口声明的是"数字或空"，空字符串会在接口校验时被拒绝
     const quoteInput = document.getElementById("form-quote").value.trim();
@@ -207,6 +247,10 @@ async function submitForm(event) {
         await refreshAll(); // 数据变了，首页和列表页都重新拉一遍
     } catch (err) {
         alert(err.message); // 后端校验不过（如姓名为空）时，这里弹出中文原因
+    } finally {
+        // 无论成功失败都恢复按钮，否则下次想保存时按钮还是灰的
+        saveBtn.disabled = false;
+        saveBtn.textContent = originalText;
     }
 }
 
@@ -235,9 +279,11 @@ function switchView(view) {
 }
 
 async function refreshAll() {
-    // 首页和列表页同时刷新（增删改之后调用）
+    // 首页和列表页同时刷新（增删改之后调用）；
+    // 顺带更新全量客户缓存（来源下拉框的选项来源）
     renderStats().catch(showError);
     renderClients().catch(showError);
+    loadAllClientsForSources().catch(showError);
 }
 
 function showError(err) {
@@ -327,5 +373,6 @@ function bindEvents() {
 document.addEventListener("DOMContentLoaded", () => {
     bindEvents();
     switchView(location.hash === "#clients" ? "clients" : "home");
-    renderStats().catch(showError); // 首页统计始终要加载
+    renderStats().catch(showError);            // 首页统计始终要加载
+    loadAllClientsForSources().catch(showError); // 来源下拉框选项
 });

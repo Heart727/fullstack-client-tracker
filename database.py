@@ -16,10 +16,16 @@ main.py 只负责"接待请求、返回结果"，不关心数据存在哪、怎�
 
 import os
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime
 
-# 数据库文件名：就放在项目目录下，删除这个文件 = 清空所有数据
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "clients.db")
+# 数据库文件位置：默认放在项目目录下（删除这个文件 = 清空所有数据）。
+# 但允许用环境变量 DATABASE_PATH 指定别的位置，两个用途：
+#   1) 部署：Railway 的硬盘是临时的，重启就清空，必须把数据库放到
+#      挂载的持久化卷上（如 DATABASE_PATH=/data/clients.db）；
+#   2) 测试：verify_api.py 自检时指向一个临时测试库，绝不碰真实数据。
+DB_PATH = os.environ.get("DATABASE_PATH") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "clients.db"
+)
 
 # 客户的三种状态（首页统计就是按这三个数数量）
 # 以后想加状态（比如"已放弃"），改这个列表 + 前端对应位置即可
@@ -36,6 +42,12 @@ def _connect():
     conn = sqlite3.connect(DB_PATH)
     # 让查询结果能用字典方式取数：row["name"]，而不是 row[0]
     conn.row_factory = sqlite3.Row
+    # 两个并发保护：
+    #   busy_timeout = 等锁最多 5 秒。FastAPI 多线程可能同时写库，
+    #   没这个设置会立刻报 "database is locked" 变成 500 错误。
+    #   WAL 模式 = 读写不互相阻塞（读的快照机制），并发更稳。
+    conn.execute("PRAGMA busy_timeout = 5000")
+    conn.execute("PRAGMA journal_mode = WAL")
     return conn
 
 
@@ -114,11 +126,14 @@ def _validate(fields):
         if quote < 0:
             raise ValueError("报价不能是负数")
 
-    # 日期格式简单校验：不填可以，填了就必须是 YYYY-MM-DD
+    # 日期格式校验：不填可以，填了就必须是严格 YYYY-MM-DD。
+    # 为什么用 fromisoformat 而不是 strptime？
+    # strptime 太宽容：会接受 "2026-8-5"（不补零）、"2026-08-18abc"（尾部垃圾）
+    # 这类脏数据，而统计接口用字符串比较日期，格式不齐会判断错"今天要跟进"。
     followup = (fields.get("next_followup") or "").strip()
     if followup:
         try:
-            datetime.strptime(followup, "%Y-%m-%d")
+            date.fromisoformat(followup)
         except ValueError:
             raise ValueError("下次跟进日期格式必须是 YYYY-MM-DD")
 
@@ -277,7 +292,9 @@ def get_stats():
         ).fetchall()
         counts = {s: 0 for s in STATUSES}  # 先全部置 0
         for r in rows:
-            counts[r["status"]] = r["n"]   # 再用真实数字覆盖
+            # .get 兜底：万一库里存了 STATUSES 之外的旧状态（比如以后
+            # 改了状态列表），只把它加进 counts 而不报错
+            counts[r["status"]] = counts.get(r["status"], 0) + r["n"]
 
         # 今日要跟进：next_followup 有值、≤ 今天、且状态不是"已完成"
         today = datetime.now().strftime("%Y-%m-%d")
