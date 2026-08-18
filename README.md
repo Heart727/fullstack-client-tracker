@@ -99,6 +99,9 @@ python -m uvicorn main:app --port 8000
 
 ## 部署（Railway）
 
+- **在线地址**：https://fullstack-client-tracker-production.up.railway.app
+- 部署平台：Railway（连 GitHub 仓库自动部署，推送即更新）
+
 仓库已带 `railway.json`（启动命令 + 健康检查路径），部署只需三步：
 
 1. 在 Railway 新建项目选本仓库（自动识别 Python + 启动命令）
