@@ -223,7 +223,9 @@ async function submitForm(event) {
     const originalText = saveBtn.textContent;
     saveBtn.textContent = "保存中…";
 
-    const id = document.getElementById("form-id");
+    // 注意：必须是 .value（输入框里存的值），拿元素本身的话
+    // 恒为真值，保存会永远走"修改"分支发错请求
+    const id = document.getElementById("form-id").value;
     // 报价输入框是文本类型；空串要转成 null 再提交——
     // 因为后端接口声明的是"数字或空"，空字符串会在接口校验时被拒绝
     const quoteInput = document.getElementById("form-quote").value.trim();
