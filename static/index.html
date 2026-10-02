@@ -4,21 +4,26 @@
     <meta charset="UTF-8">
     <!-- viewport 这行是"手机上能用"的关键：告诉手机浏览器按设备宽度渲染，别把桌面版缩小塞进屏幕 -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>客户跟进管理</title>
+    <meta name="theme-color" content="#f3f5f2">
+    <title>拾客 · 客户跟进</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <!-- 顶部栏：应用名 + 两个页面标签 -->
     <header class="topbar">
-        <h1>客户跟进管理</h1>
-        <nav class="tabs">
+        <div class="brand-lockup"><span class="brand-mark" aria-hidden="true">拾</span><div><h1>拾客</h1><p>客户跟进工作台</p></div></div>
+        <nav class="tabs" aria-label="主导航">
             <button class="tab active" data-view="home">首页</button>
             <button class="tab" data-view="clients">客户</button>
         </nav>
     </header>
 
     <main>
+        <aside class="demo-notice" role="note">
+            <span class="notice-icon" aria-hidden="true">i</span>
+            <p><strong>公开演示环境</strong> · 没有登录，所有访客共用同一份数据。请使用虚构客户信息，不要录入真实姓名、报价或沟通记录。</p>
+        </aside>
         <!-- ============ 视图一：首页（仪表盘） ============ -->
         <section id="view-home" class="view">
             <!-- 三个状态统计卡片，数字由 JS 填入 -->

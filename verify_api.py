@@ -20,10 +20,11 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date
+from datetime import date, timedelta
 
 BASE = "http://localhost:8000"
 TODAY = date.today().strftime("%Y-%m-%d")
+FUTURE = (date.today() + timedelta(days=30)).strftime("%Y-%m-%d")
 
 passed, failed = [], []  # 收集每项结果，最后统一汇报
 
@@ -32,10 +33,10 @@ def check(name, condition, detail=""):
     """记录一项检查结果：condition 为真记 PASS，否则记 FAIL。"""
     if condition:
         passed.append(name)
-        print(f"  ✅ PASS  {name}")
+        print(f"  [PASS] {name}")
     else:
         failed.append(name)
-        print(f"  ❌ FAIL  {name}  {detail}")
+        print(f"  [FAIL] {name}  {detail}")
 
 
 def call(method, path, body=None):
@@ -85,7 +86,7 @@ def main():
 
     code, c2 = call("POST", "/api/clients", {
         "name": "李四", "source": "朋友介绍", "status": "进行中",
-        "quote": "", "next_followup": "2026-08-25",
+        "quote": "", "next_followup": FUTURE,
     })
     check("第二个客户（报价留空）返回 201", code == 201, f"实际 {code}")
     check("留空报价存成了 null", c2.get("quote") is None, str(c2.get("quote")))
@@ -186,7 +187,7 @@ def main():
     if failed:
         print("失败项：", "、".join(failed))
         sys.exit(1)
-    print("全部通过 🎉")
+    print("全部通过。")
     sys.exit(0)
 
 

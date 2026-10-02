@@ -97,17 +97,10 @@ python -m uvicorn main:app --port 8000
 | `railway.json` | Railway 部署配置（启动命令 + 健康检查） |
 | `clients.db` | SQLite 数据文件（首次启动自动生成，已 gitignore） |
 
-## 部署（Railway）
+## 在线体验与数据安全
 
-- **在线地址**：https://fullstack-client-tracker-production.up.railway.app
-- 部署平台：Railway（连 GitHub 仓库自动部署，推送即更新）
+当前没有可用的公网演示站点；此前的 Railway 地址已下线。请按上面的步骤在本机运行。
 
-仓库已带 `railway.json`（启动命令 + 健康检查路径），部署只需三步：
+这是用于作品集展示的演示版，没有登录鉴权。公开部署后所有访客都能查看、新增、修改和删除同一份数据。页面会持续显示这一点；请只录入虚构信息。若用于真实客户管理，需要先增加身份验证、权限隔离和备份。
 
-1. 在 Railway 新建项目选本仓库（自动识别 Python + 启动命令）
-2. **挂载持久化卷**（关键！Railway 的容器硬盘是临时的，重启即清空，不挂卷客户数据会丢）：
-   - 项目 → Settings → Volumes → Add Volume，挂载路径填 `/data`
-   - 添加环境变量 `DATABASE_PATH=/data/clients.db`
-3. 部署完成后打开公开链接即可
-
-⚠️ **安全提醒（重要）**：本仓库是作品集演示版，**没有登录功能**，公开链接任何人都能读写数据。线上只放演示假数据；如果要存真实客户信息，需要先加访问鉴权（当前版本未做，属已知限制）。
+`railway.json` 保留为部署配置示例；部署到任何平台前，都应先配置持久化磁盘，并将 `DATABASE_PATH` 指向持久化目录，否则容器重启后 SQLite 数据可能丢失。
