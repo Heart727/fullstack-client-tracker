@@ -14,6 +14,8 @@
 
 ## 截图
 
+以下页面展示的是虚构客户数据。
+
 | 手机首页 | 手机客户列表 | 电脑首页 |
 | --- | --- | --- |
 | ![手机首页](docs/screenshots/screenshot-mobile-home.png) | ![手机列表](docs/screenshots/screenshot-mobile-clients.png) | ![电脑首页](docs/screenshots/screenshot-desktop.png) |
